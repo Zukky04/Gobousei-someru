@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>五芒星そめる</title>
+<style>
+  :root {
+    --ink: #333;
+    --line: #444;
+    --muted: #888;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: #fff;
+    color: var(--ink);
+    font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "BIZ UDPGothic", "Meiryo", system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  main {
+    max-width: 440px;
+    margin: 0 auto;
+    padding: max(12px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  }
+  button { font: inherit; color: inherit; touch-action: manipulation; }
+  :focus-visible { outline: 3px solid #0068B7; outline-offset: 3px; }
+
+  .top { height: 48px; display: flex; align-items: center; }
+  .clear {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 44px; padding: 6px 16px;
+    background: #fff; border: 2px solid #555; border-radius: 14px;
+    font-size: 17px; cursor: pointer;
+  }
+  .clear:active { background: #f2f2f2; }
+  .clear svg { width: 22px; height: 22px; }
+
+  .stage { position: relative; }
+  .star { display: block; width: 100%; height: auto; }
+  .star polygon {
+    fill: #fff; stroke: var(--line); stroke-width: 1.5; stroke-linejoin: round;
+    cursor: pointer; outline: none;
+  }
+  .star polygon:focus-visible { stroke: #0068B7; stroke-width: 4; }
+
+  .holder {
+    position: absolute; right: 0; bottom: -4px; width: 23%;
+    text-align: center; pointer-events: none;
+  }
+  .holder .hand { position: relative; width: 100%; aspect-ratio: 1 / 0.85; }
+  .drop {
+    position: absolute; left: 22%; top: 0; width: 38%; aspect-ratio: 1;
+    border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+    background: #fff; border: 2px dashed #aaa;
+  }
+  .holder.has .drop { border: 2px solid #555; }
+  .finger {
+    position: absolute; left: 14%; top: 22%; width: 78%; height: auto;
+    fill: #fff; stroke: #555; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .name { font-size: 14px; line-height: 1.3; min-height: 1.3em; white-space: nowrap; }
+  .holder.nudge .hand { animation: nudge .45s ease; }
+  @keyframes nudge {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px) rotate(-6deg); }
+    40% { transform: translateX(6px) rotate(6deg); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(3px); }
+  }
+
+  .palette {
+    display: grid; grid-template-columns: repeat(6, 1fr);
+    gap: 10px 8px; margin-top: 10px; padding: 0; list-style: none;
+  }
+  .swatch {
+    display: block; width: 100%; max-width: 52px; aspect-ratio: 1; margin: 0 auto;
+    border-radius: 50%; border: 1.5px solid #bbb; padding: 0; cursor: pointer;
+  }
+  .swatch[aria-pressed="true"] { outline: 3px solid #333; outline-offset: 3px; }
+
+  dialog {
+    border: none; border-radius: 20px; padding: 0;
+    width: min(300px, calc(100vw - 48px)); text-align: center; color: var(--ink);
+  }
+  dialog .box { padding: 24px 20px 20px; }
+  dialog::backdrop { background: rgba(0, 0, 0, .45); }
+  dialog h2 { font-size: 20px; font-weight: normal; margin: 0 0 6px; }
+  dialog p { font-size: 14px; color: #666; margin: 0 0 20px; }
+  dialog .row { display: flex; gap: 10px; }
+  dialog .row button {
+    flex: 1; min-height: 48px; border-radius: 14px; border: 2px solid #555;
+    background: #fff; font-size: 16px; cursor: pointer;
+  }
+  dialog .row .ok { background: #555; color: #fff; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1 class="sr-only">五芒星そめる</h1>
+
+  <div class="top">
+    <button type="button" class="clear" id="clear">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3"/>
+        <path d="M18 13.3l-6.3 -6.3"/>
+      </svg>
+      クリア
+    </button>
+  </div>
+
+  <div class="stage">
+    <svg class="star" id="star" viewBox="0 0 300 290" role="group" aria-label="ほし"></svg>
+
+    <div class="holder" id="holder" aria-hidden="true">
+      <div class="hand">
+        <span class="drop" id="drop"></span>
+        <!-- 指の形: Tabler Icons "hand-finger" (MIT License) -->
+        <svg class="finger" viewBox="0 0 24 24">
+          <path d="M8 13v-8.5a1.5 1.5 0 0 1 3 0v7.5"/>
+          <path d="M11 11.5v-2a1.5 1.5 0 1 1 3 0v2.5"/>
+          <path d="M14 10.5a1.5 1.5 0 0 1 3 0v1.5"/>
+          <path d="M17 11.5a1.5 1.5 0 0 1 3 0v4.5a6 6 0 0 1 -6 6h-2h.208a6 6 0 0 1 -5.012 -2.7a69.74 69.74 0 0 1 -.196 -.3c-.312 -.479 -1.407 -2.388 -3.286 -5.728a1.5 1.5 0 0 1 .536 -2.022a1.867 1.867 0 0 1 2.28 .28l1.47 1.47"/>
+        </svg>
+      </div>
+      <div class="name" id="name"></div>
+    </div>
+  </div>
+
+  <ul class="palette" id="palette" aria-label="いろ"></ul>
+
+  <p class="sr-only" id="status" aria-live="polite"></p>
+</main>
+
+<dialog id="confirm" aria-labelledby="confirm-title">
+  <div class="box">
+    <h2 id="confirm-title">ぜんぶ白にもどす？</h2>
+    <p>ぬった色がきえます</p>
+    <form method="dialog" class="row">
+      <button value="cancel" autofocus>やめる</button>
+      <button value="ok" class="ok">しろにもどす</button>
+    </form>
+  </div>
+</dialog>
+
+<script>
+  const COLORS = [
+    ["#FFFFFF", "しろ"],      ["#FFF462", "レモンいろ"], ["#FFD900", "きいろ"],
+    ["#F8B500", "やまぶきいろ"], ["#F08300", "だいだいいろ"], ["#FBD2B0", "うすだいだい"],
+    ["#E60033", "あか"],      ["#F4A3BC", "ももいろ"],   ["#C7006E", "あかむらさき"],
+    ["#7D3C98", "むらさき"],   ["#B4A6D6", "ふじいろ"],   ["#1D2088", "あいいろ"],
+    ["#0068B7", "あお"],      ["#7FC8F0", "みずいろ"],   ["#A0D8EF", "そらいろ"],
+    ["#00A497", "あおみどり"],  ["#009944", "みどり"],    ["#8FC31F", "きみどり"],
+    ["#00552E", "ふかみどり"],  ["#C49A3F", "おうどいろ"],  ["#8B5A2B", "ちゃいろ"],
+    ["#5C3A21", "こげちゃいろ"], ["#9E9E9E", "はいいろ"],   ["#222222", "くろ"],
+  ];
+  const WHITE = "#FFFFFF";
+  const PART_NAMES = ["うえ", "みぎうえ", "みぎした", "ひだりした", "ひだりうえ"];
+
+  const star = document.getElementById("star");
+  const holder = document.getElementById("holder");
+  const drop = document.getElementById("drop");
+  const nameEl = document.getElementById("name");
+  const statusEl = document.getElementById("status");
+  const palette = document.getElementById("palette");
+  const confirmDialog = document.getElementById("confirm");
+
+  let held = null;
+  const parts = [];
+  const swatches = [];
+
+  function say(text) { statusEl.textContent = text; }
+
+  // 五芒星: とがった三角5つ + 真ん中の五角形
+  (function buildStar() {
+    const cx = 150, cy = 152, R = 140, r = R * 0.382;
+    const pt = (deg, d) => [cx + d * Math.cos(deg * Math.PI / 180), cy + d * Math.sin(deg * Math.PI / 180)];
+    const outer = [], inner = [];
+    for (let k = 0; k < 5; k++) {
+      outer.push(pt(-90 + 72 * k, R));
+      inner.push(pt(-54 + 72 * k, r));
+    }
+    const shapes = PART_NAMES.map((n, k) => [`${n}のとがり`, [inner[(k + 4) % 5], outer[k], inner[k]]]);
+    shapes.push(["まんなか", inner]);
+
+    for (const [label, pts] of shapes) {
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      p.setAttribute("points", pts.map(q => q.map(v => v.toFixed(2)).join(",")).join(" "));
+      p.setAttribute("role", "button");
+      p.setAttribute("tabindex", "0");
+      p.setAttribute("aria-label", `${label}（しろ）`);
+      p.dataset.label = label;
+      p.style.fill = WHITE;
+      p.addEventListener("click", () => paint(p));
+      p.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); paint(p); }
+      });
+      star.appendChild(p);
+      parts.push(p);
+    }
+  })();
+
+  COLORS.forEach(([hex, name]) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "swatch";
+    b.style.background = hex;
+    b.setAttribute("aria-label", name);
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => pick(hex, name, b));
+    li.appendChild(b);
+    palette.appendChild(li);
+    swatches.push(b);
+  });
+
+  function pick(hex, name, button) {
+    held = { hex, name };
+    swatches.forEach(s => s.setAttribute("aria-pressed", String(s === button)));
+    drop.style.background = hex;
+    nameEl.textContent = name;
+    holder.classList.add("has");
+    say(`${name}をもっています`);
+  }
+
+  function paint(part) {
+    if (!held) {
+      holder.classList.remove("nudge");
+      void holder.offsetWidth;
+      holder.classList.add("nudge");
+      say("さきに いろを えらんでね");
+      return;
+    }
+    part.style.fill = held.hex;
+    part.setAttribute("aria-label", `${part.dataset.label}（${held.name}）`);
+  }
+
+  function clearAll() {
+    parts.forEach(p => {
+      p.style.fill = WHITE;
+      p.setAttribute("aria-label", `${p.dataset.label}（しろ）`);
+    });
+    say("しろにもどしました");
+  }
+
+  document.getElementById("clear").addEventListener("click", () => {
+    confirmDialog.returnValue = "";
+    confirmDialog.showModal();
+  });
+  confirmDialog.addEventListener("close", () => {
+    if (confirmDialog.returnValue === "ok") clearAll();
+  });
+  // 外側（暗いところ）を押したら「やめる」と同じ
+  confirmDialog.addEventListener("click", e => {
+    if (e.target === confirmDialog) confirmDialog.close("cancel");
+  });
+</script>
+</body>
+</html>
